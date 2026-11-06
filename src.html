@@ -1,0 +1,408 @@
+<title>품의 엑셀 만들기</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* Layout: 한 줄 흐름 — 캡처 붙여넣기 → 표 확인·수정 → 엑셀 내려받기. 표는 가로 스크롤 컨테이너 안에. */
+:root {
+  --bg: #f4f6f6;
+  --surface: #ffffff;
+  --fg: #1d2523;
+  --muted: #5d6967;
+  --line: #d5dcdb;
+  --head: #59595b;       /* 양식 헤더 색과 동일 */
+  --head-fg: #ffffff;
+  --accent: #1b7a5a;
+  --accent-fg: #ffffff;
+  --accent-soft: #e2f1ec;
+  --warn: #9a5b00;
+  --warn-soft: #fbefd9;
+  --danger: #b3261e;
+  --font: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131817; --surface: #1c2322; --fg: #e6ecea; --muted: #9aa8a5; --line: #323d3b;
+    --head: #3d3f40; --head-fg: #f1f1f1; --accent: #46b890; --accent-fg: #07201a;
+    --accent-soft: #1d3a31; --warn: #f0b95c; --warn-soft: #3a2d14; --danger: #ff8a80;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131817; --surface: #1c2322; --fg: #e6ecea; --muted: #9aa8a5; --line: #323d3b;
+  --head: #3d3f40; --head-fg: #f1f1f1; --accent: #46b890; --accent-fg: #07201a;
+  --accent-soft: #1d3a31; --warn: #f0b95c; --warn-soft: #3a2d14; --danger: #ff8a80;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.55;
+  padding-block: 24px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+main { max-width: 960px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1 { font-size: 24px; margin: 0; line-height: 1.3; text-wrap: balance; }
+h2 { font-size: 15px; margin: 0; }
+p { margin: 0; }
+.lede { color: var(--muted); margin-top: 4px; }
+section { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.sec-head .hint { color: var(--muted); font-size: 13px; }
+
+button, .btn {
+  font: inherit; font-weight: 500; border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  border-radius: 6px; padding: 8px 14px; cursor: pointer; min-height: 38px;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+button.primary:hover:not(:disabled) { filter: brightness(1.06); }
+button.quiet { border-color: transparent; color: var(--muted); padding: 8px 10px; }
+button:focus-visible, input:focus-visible, .drop:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.drop {
+  border: 2px dashed var(--line); border-radius: 8px; padding: 22px 16px; text-align: center; color: var(--muted);
+  background: var(--bg); cursor: pointer; transition: border-color .15s, background .15s;
+}
+.drop strong { color: var(--fg); display: block; font-size: 16px; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+kbd { font-family: inherit; font-size: 12px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--surface); color: var(--fg); }
+
+.thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+.thumb { position: relative; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--bg); aspect-ratio: 4 / 3; max-width: 100%; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb button { position: absolute; top: 4px; right: 4px; min-height: 26px; padding: 0 8px; font-size: 12px; background: var(--surface); }
+.thumb .no { position: absolute; left: 4px; bottom: 4px; font-size: 12px; background: var(--head); color: var(--head-fg); border-radius: 4px; padding: 0 6px; }
+
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.status { font-size: 13px; color: var(--muted); }
+.status.err { color: var(--danger); }
+.notice { font-size: 13px; background: var(--warn-soft); color: var(--warn); border-radius: 6px; padding: 8px 12px; }
+.cost { font-size: 12.5px; color: var(--muted); }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; }
+table { border-collapse: collapse; width: 100%; min-width: 780px; font-variant-numeric: tabular-nums; }
+th { background: var(--head); color: var(--head-fg); font-size: 13px; font-weight: 700; padding: 8px; text-align: center; white-space: nowrap; }
+td { border-top: 1px solid var(--line); padding: 4px; vertical-align: middle; }
+td.no { text-align: center; color: var(--muted); width: 48px; }
+td input { width: 100%; font: inherit; color: var(--fg); background: transparent; border: 1px solid transparent; border-radius: 4px; padding: 6px; min-width: 0; }
+td input:hover { border-color: var(--line); }
+td input:focus { border-color: var(--accent); background: var(--surface); }
+td input.num { text-align: right; }
+td.amt { text-align: right; padding-right: 10px; white-space: nowrap; }
+td.del { width: 44px; text-align: center; }
+tfoot td { background: var(--bg); font-weight: 700; text-align: right; padding: 10px; }
+.empty { padding: 28px 16px; text-align: center; color: var(--muted); }
+col.c-name { width: auto; } col.c-spec { width: 20%; } col.c-qty { width: 84px; } col.c-unit { width: 72px; } col.c-price { width: 120px; } col.c-amt { width: 120px; }
+@media (prefers-reduced-motion: reduce) { .drop { transition: none; } }
+</style>
+
+<main>
+  <header>
+    <h1>품의 엑셀 만들기</h1>
+    <p class="lede">품목이 보이는 화면을 캡처해 붙여넣으면, 품목내역 양식에 맞춰 엑셀로 만들어 드려요.</p>
+  </header>
+
+  <section aria-labelledby="h-shot">
+    <div class="sec-head">
+      <h2 id="h-shot">1. 캡처 붙여넣기</h2>
+      <span class="hint">여러 장도 괜찮아요. 한 장씩 계속 붙여넣으세요.</span>
+    </div>
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="캡처 붙여넣기 또는 파일 선택">
+      <strong>여기를 누른 뒤 <kbd>Ctrl</kbd> + <kbd>V</kbd></strong>
+      캡처 이미지를 끌어다 놓거나, 눌러서 파일을 고를 수도 있어요.
+    </div>
+    <input type="file" id="file" accept="image/*" multiple hidden>
+    <div class="thumbs" id="thumbs" hidden></div>
+    <div class="actions">
+      <button class="primary" id="read" disabled>캡처에서 품목 읽기</button>
+      <button id="stop" hidden>중지</button>
+      <button class="quiet" id="clear-shots" hidden>캡처 모두 지우기</button>
+      <span class="status" id="status" role="status"></span>
+    </div>
+    <div class="notice" id="no-ai" hidden>이 화면에서는 캡처 자동 읽기를 쓸 수 없어요. 아래 표에 직접 입력해도 엑셀은 만들 수 있어요.</div>
+    <p class="cost">읽기는 이 페이지를 연 사람의 Claude 계정으로 처리돼요. 처음 한 번 허용을 묻습니다.</p>
+  </section>
+
+  <section aria-labelledby="h-table">
+    <div class="sec-head">
+      <h2 id="h-table">2. 내용 확인하고 고치기</h2>
+      <span class="hint">읽은 값이 틀렸으면 칸을 눌러 바로 고치세요.</span>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <colgroup><col style="width:48px"><col class="c-name"><col class="c-spec"><col class="c-qty"><col class="c-unit"><col class="c-price"><col class="c-amt"><col style="width:44px"></colgroup>
+        <thead><tr><th>순번</th><th>내용</th><th>규격</th><th>수량</th><th>단위</th><th>예상단가</th><th>예상금액</th><th><span class="sr" aria-label="삭제"></span></th></tr></thead>
+        <tbody id="rows"></tbody>
+        <tfoot id="foot"></tfoot>
+      </table>
+    </div>
+    <div class="actions">
+      <button id="add">+ 줄 추가</button>
+      <button class="quiet" id="sample-rows">예시로 채워 보기</button>
+      <button class="quiet" id="clear-rows">표 비우기</button>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-dl">
+    <h2 id="h-dl">3. 엑셀 내려받기</h2>
+    <div class="actions">
+      <button class="primary" id="download" disabled>품목내역.xlsx 내려받기</button>
+      <span class="status" id="dl-status" role="status"></span>
+    </div>
+    <p class="cost">내려받은 파일은 올려주신 양식과 같은 모양이에요. 순번과 예상금액(수량 × 단가)은 자동으로 채워져요.</p>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const TEMPLATE_B64 = "__TEMPLATE_B64__";
+const $ = (id) => document.getElementById(id);
+
+let shots = [];   // {id, blob, url}
+let rows = [];    // {id, name, spec, qty, unit, price}
+let uid = 0;
+let sample = null, downloads = null, imgLimits = null, ctl = null;
+
+const fmt = (n) => (Number.isFinite(n) ? n.toLocaleString("ko-KR") : "");
+const toNum = (v) => {
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  const n = parseFloat(String(v ?? "").replace(/[^0-9.\-]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+};
+const amountOf = (r) => toNum(r.qty) * toNum(r.price);
+
+/* ---------- 캡처 ---------- */
+function addFiles(files) {
+  let added = 0;
+  for (const f of files) {
+    if (!f || !/^image\//.test(f.type)) continue;
+    shots.push({ id: ++uid, blob: f, url: URL.createObjectURL(f) });
+    added++;
+  }
+  if (added) { setStatus(""); renderShots(); }
+}
+function renderShots() {
+  const box = $("thumbs");
+  box.replaceChildren();
+  shots.forEach((s, i) => {
+    const d = document.createElement("div");
+    d.className = "thumb";
+    const img = document.createElement("img");
+    img.src = s.url; img.alt = (i + 1) + "번째 캡처";
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = "삭제"; b.setAttribute("aria-label", (i + 1) + "번째 캡처 삭제");
+    b.onclick = () => { URL.revokeObjectURL(s.url); shots = shots.filter((x) => x.id !== s.id); renderShots(); };
+    const n = document.createElement("span");
+    n.className = "no"; n.textContent = String(i + 1);
+    d.append(img, b, n);
+    box.append(d);
+  });
+  box.hidden = !shots.length;
+  $("clear-shots").hidden = !shots.length;
+  $("read").disabled = !shots.length || !sample || !imgLimits;
+}
+function setStatus(t, err) {
+  const s = $("status");
+  s.textContent = t; s.classList.toggle("err", !!err);
+}
+
+document.addEventListener("paste", (e) => {
+  const files = [...(e.clipboardData?.items || [])].filter((i) => i.kind === "file" && /^image\//.test(i.type)).map((i) => i.getAsFile());
+  if (files.length) { e.preventDefault(); addFiles(files); }
+});
+const drop = $("drop");
+drop.onclick = () => $("file").click();
+drop.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("file").click(); } };
+$("file").onchange = (e) => { addFiles(e.target.files); e.target.value = ""; };
+["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => addFiles(e.dataTransfer.files));
+$("clear-shots").onclick = () => { shots.forEach((s) => URL.revokeObjectURL(s.url)); shots = []; renderShots(); setStatus(""); };
+
+/* ---------- 읽기 ---------- */
+const PROMPT = `첨부된 이미지는 물품 구매(품의)에 쓸 품목 목록을 캡처한 화면입니다. 이미지에 보이는 품목을 위에서 아래 순서로 모두 읽어 JSON 배열로만 답하세요.
+
+각 품목은 다음 형태입니다.
+{"name": 품명(문자열), "spec": 규격·모델·옵션(문자열, 없으면 ""), "qty": 수량(숫자), "unit": 단위(문자열), "shown": 화면에 표시된 금액(숫자, 원), "shown_is_total": 그 금액이 해당 수량 전체의 합계이면 true, 개당 가격이면 false}
+
+규칙:
+- 화면에 보이는 값만 쓰고, 보이지 않는 값을 지어내지 마세요.
+- 쿠팡 같은 쇼핑몰 화면에서는 수량을 늘리면 표시 금액이 수량만큼 곱해진 합계로 바뀝니다. 수량 선택칸이나 "n개" 옆, 장바구니 항목에 보이는 금액은 합계이므로 shown_is_total을 true로 하세요. "개당", "단가", "1개당"처럼 한 개 값이 분명히 적혀 있을 때만 false로 하세요.
+- 한 개 가격과 합계가 함께 보이면 shown에 합계를 넣고 shown_is_total을 true로 하세요.
+- 금액이 전혀 없으면 shown은 0.
+- 수량이 보이지 않으면 1, 단위가 보이지 않으면 "개".
+- 쉼표와 "원" 같은 글자는 빼고 숫자만 넣으세요.
+- 같은 품목이 여러 이미지에 겹쳐 보이면 한 번만 넣으세요.
+- 품목이 하나도 없으면 [] 만 답하세요.`;
+
+const ERR = {
+  not_granted: "Claude 사용을 허용하지 않아 읽을 수 없어요. 표에 직접 입력해 주세요.",
+  sampling_disabled: "이 계정에서는 Claude를 쓸 수 없어요. 표에 직접 입력해 주세요.",
+  rate_limited: "요청이 너무 많거나 사용 한도에 닿았어요. 잠시 뒤에 다시 눌러 주세요.",
+  session_expired: "로그인이 만료됐어요. 다시 로그인한 뒤 눌러 주세요.",
+  image_rejected: "이미지를 읽을 수 없어요. 다른 캡처로 바꿔 보세요.",
+  invalid_json: "결과를 표로 바꾸지 못했어요. 한 번 더 눌러 보세요.",
+  refused: "이 이미지는 읽을 수 없어요. 다른 캡처로 바꿔 보세요.",
+  upstream_error: "연결이 잠시 불안정해요. 다시 눌러 보세요.",
+};
+
+$("read").onclick = async () => {
+  if (!sample || !shots.length) return;
+  const per = Math.max(1, imgLimits?.maxCount || 1);
+  const groups = [];
+  for (let i = 0; i < shots.length; i += per) groups.push(shots.slice(i, i + per));
+  ctl = new AbortController();
+  $("read").disabled = true; $("stop").hidden = false;
+  let got = 0;
+  try {
+    for (let g = 0; g < groups.length; g++) {
+      setStatus("읽는 중… (" + (g + 1) + "/" + groups.length + ")");
+      const out = await sample.json(PROMPT, { images: groups[g].map((s) => s.blob), signal: ctl.signal });
+      const list = Array.isArray(out) ? out : [];
+      for (const it of list) {
+        if (!it || !String(it.name ?? "").trim()) continue;
+        const qty = toNum(it.qty) || 1;
+        const shown = toNum(it.shown);
+        const price = it.shown_is_total === false ? shown : Math.round((shown / qty) * 100) / 100;
+        rows.push({ id: ++uid, name: String(it.name).trim(), spec: String(it.spec ?? "").trim(), qty, unit: String(it.unit ?? "").trim() || "개", price });
+        got++;
+      }
+      renderRows();
+    }
+    setStatus(got ? got + "개 품목을 표에 넣었어요. 값이 맞는지 확인해 주세요." : "읽을 수 있는 품목을 찾지 못했어요.");
+    if (got) { shots.forEach((s) => URL.revokeObjectURL(s.url)); shots = []; renderShots(); }
+  } catch (e) {
+    if (e?.code === "cancelled") setStatus(got ? "중지했어요. " + got + "개는 표에 들어갔어요." : "중지했어요.");
+    else setStatus(ERR[e?.code] || ERR.upstream_error, true);
+  } finally {
+    ctl = null; $("stop").hidden = true; $("read").disabled = !shots.length;
+  }
+};
+$("stop").onclick = () => ctl?.abort();
+
+/* ---------- 표 ---------- */
+function cell(r, key, cls, mode) {
+  const td = document.createElement("td");
+  const inp = document.createElement("input");
+  inp.id = "r" + r.id + "-" + key;
+  inp.value = mode === "num" ? (r[key] ? fmt(toNum(r[key])) : "") : r[key];
+  if (mode === "num") { inp.className = "num"; inp.inputMode = "numeric"; }
+  inp.setAttribute("aria-label", { name: "내용", spec: "규격", qty: "수량", unit: "단위", price: "예상단가" }[key]);
+  inp.oninput = () => { r[key] = mode === "num" ? toNum(inp.value) : inp.value; updateAmounts(); };
+  if (mode === "num") inp.onblur = () => { inp.value = r[key] ? fmt(r[key]) : ""; };
+  td.append(inp);
+  return td;
+}
+function renderRows() {
+  const tb = $("rows");
+  tb.replaceChildren();
+  if (!rows.length) {
+    const tr = document.createElement("tr"), td = document.createElement("td");
+    td.colSpan = 8; td.className = "empty";
+    td.textContent = "아직 품목이 없어요. 위에서 캡처를 읽거나, 줄 추가로 직접 입력하세요.";
+    tr.append(td); tb.append(tr);
+  }
+  rows.forEach((r, i) => {
+    const tr = document.createElement("tr");
+    const no = document.createElement("td"); no.className = "no"; no.textContent = String(i + 1);
+    const amt = document.createElement("td"); amt.className = "amt"; amt.id = "amt-" + r.id;
+    const del = document.createElement("td"); del.className = "del";
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "quiet"; b.textContent = "×"; b.setAttribute("aria-label", (i + 1) + "번 줄 삭제");
+    b.onclick = () => { rows = rows.filter((x) => x.id !== r.id); renderRows(); };
+    del.append(b);
+    tr.append(no, cell(r, "name"), cell(r, "spec"), cell(r, "qty", "", "num"), cell(r, "unit"), cell(r, "price", "", "num"), amt, del);
+    tb.append(tr);
+  });
+  updateAmounts();
+}
+function updateAmounts() {
+  let total = 0;
+  rows.forEach((r) => {
+    const a = amountOf(r); total += a;
+    const el = $("amt-" + r.id); if (el) el.textContent = fmt(a);
+  });
+  const foot = $("foot");
+  foot.replaceChildren();
+  if (rows.length) {
+    const tr = document.createElement("tr"), l = document.createElement("td"), v = document.createElement("td");
+    l.colSpan = 6; l.textContent = "합계 (" + rows.length + "개 품목)"; v.colSpan = 2; v.textContent = fmt(total) + "원";
+    tr.append(l, v); foot.append(tr);
+  }
+  $("download").disabled = !rows.some((r) => String(r.name).trim());
+}
+$("add").onclick = () => { rows.push({ id: ++uid, name: "", spec: "", qty: 1, unit: "개", price: 0 }); renderRows(); $("r" + rows[rows.length - 1].id + "-name").focus(); };
+$("clear-rows").onclick = () => { rows = []; renderRows(); };
+$("sample-rows").onclick = () => {
+  rows.push(
+    { id: ++uid, name: "예시) A4 복사용지 80g", spec: "500매 x 5권", qty: 10, unit: "박스", price: 21500 },
+    { id: ++uid, name: "예시) 유성 매직 (검정)", spec: "굵은 글씨용", qty: 24, unit: "개", price: 900 }
+  );
+  renderRows();
+};
+
+/* ---------- 엑셀 ---------- */
+const esc = (s) => String(s ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const XFS =
+  '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf>' +
+  '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' +
+  '<xf numFmtId="3" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>';
+const S_TEXT = 6, S_CENTER = 7, S_NUM = 8;
+
+async function buildXlsx() {
+  const zip = await JSZip.loadAsync(TEMPLATE_B64, { base64: true });
+  let st = await zip.file("xl/styles.xml").async("string");
+  st = st.replace('<cellXfs count="6">', '<cellXfs count="9">').replace("</cellXfs>", XFS + "</cellXfs>");
+  zip.file("xl/styles.xml", st);
+
+  const list = rows.filter((r) => String(r.name).trim());
+  const str = (ref, s, v) => '<c r="' + ref + '" s="' + s + '" t="inlineStr"><is><t xml:space="preserve">' + esc(v) + "</t></is></c>";
+  const num = (ref, s, v) => '<c r="' + ref + '" s="' + s + '"><v>' + v + "</v></c>";
+  let xml = "";
+  list.forEach((r, i) => {
+    const n = i + 4;
+    xml += '<row r="' + n + '">' +
+      num("A" + n, S_CENTER, i + 1) +
+      str("B" + n, S_TEXT, r.name) +
+      '<c r="C' + n + '" s="' + S_CENTER + '"/>' +
+      str("D" + n, S_TEXT, r.spec) +
+      num("E" + n, S_NUM, toNum(r.qty)) +
+      str("F" + n, S_CENTER, r.unit) +
+      num("G" + n, S_NUM, toNum(r.price)) +
+      '<c r="H' + n + '" s="' + S_NUM + '"><f>E' + n + "*G" + n + "</f><v>" + amountOf(r) + "</v></c>" +
+      '<c r="I' + n + '" s="' + S_NUM + '"/></row>';
+  });
+  let sh = await zip.file("xl/worksheets/sheet1.xml").async("string");
+  sh = sh.replace("</sheetData>", xml + "</sheetData>").replace('<dimension ref="A1:I3"/>', '<dimension ref="A1:I' + (list.length + 3) + '"/>');
+  zip.file("xl/worksheets/sheet1.xml", sh);
+  return zip.generateAsync({ type: "arraybuffer", compression: "DEFLATE" });
+}
+
+$("download").onclick = async () => {
+  const s = $("dl-status");
+  if (!downloads) { s.textContent = "이 화면에서는 파일 저장을 쓸 수 없어요. 링크를 브라우저에서 직접 열어 보세요."; s.classList.add("err"); return; }
+  s.classList.remove("err"); s.textContent = "만드는 중…";
+  try {
+    const buf = await buildXlsx();
+    await downloads.save({ filename: "품목내역.xlsx", data: buf });
+    s.textContent = "저장했어요.";
+  } catch (e) {
+    if (e?.code === "declined") s.textContent = "저장을 취소했어요.";
+    else { s.textContent = "저장하지 못했어요. 다시 눌러 보세요."; s.classList.add("err"); }
+  }
+};
+
+/* ---------- 시작 ---------- */
+renderShots();
+renderRows();
+(async () => {
+  try { downloads = await window.claude?.use("downloads"); } catch (e) { downloads = null; }
+  try {
+    sample = await window.claude?.use("sample");
+    imgLimits = sample ? (await sample.limits().catch(() => null))?.images || null : null;
+  } catch (e) { sample = null; }
+  if (!sample || !imgLimits) { sample = null; $("no-ai").hidden = false; }
+  renderShots();
+})();
+</script>
