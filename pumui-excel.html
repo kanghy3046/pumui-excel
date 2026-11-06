@@ -164,7 +164,7 @@ let rows = [];    // {id, name, spec, qty, unit, price}
 let uid = 0;
 let sample = null, downloads = null, imgLimits = null, ctl = null;
 
-const fmt = (n) => (Number.isFinite(n) ? n.toLocaleString("ko-KR") : "");
+const fmt = (n) => (Number.isFinite(n) ? n.toLocaleString("ko-KR", { maximumFractionDigits: 2 }) : "");
 const toNum = (v) => {
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
   const n = parseFloat(String(v ?? "").replace(/[^0-9.\-]/g, ""));
@@ -230,6 +230,8 @@ const PROMPT = `첨부된 이미지는 물품 구매(품의)에 쓸 품목 목�
 - 화면에 보이는 값만 쓰고, 보이지 않는 값을 지어내지 마세요.
 - 쿠팡 같은 쇼핑몰 화면에서는 수량을 늘리면 표시 금액이 수량만큼 곱해진 합계로 바뀝니다. 수량 선택칸이나 "n개" 옆, 장바구니 항목에 보이는 금액은 합계이므로 shown_is_total을 true로 하세요. "개당", "단가", "1개당"처럼 한 개 값이 분명히 적혀 있을 때만 false로 하세요.
 - 한 개 가격과 합계가 함께 보이면 shown에 합계를 넣고 shown_is_total을 true로 하세요.
+- 쿠팡 상품 상세 페이지에는 가격이 두 개 보일 수 있습니다. "와우 가입 쿠폰할인가"처럼 회원 전용 가격은 쓰지 말고, "일반할인가"(누구나 살 수 있는 가격) 금액을 shown으로 쓰세요. 취소선이 그어진 정가는 절대 쓰지 마세요.
+- 쿠팡 상품 상세 페이지에서 수량은 "장바구니 담기" 버튼 왼쪽 수량 입력칸(숫자와 위아래 화살표)에 있는 숫자입니다. 이 숫자를 qty로 쓰세요. 이때 일반할인가는 그 수량 전체의 합계이므로 shown_is_total은 true입니다.
 - 금액이 전혀 없으면 shown은 0.
 - 수량이 보이지 않으면 1, 단위가 보이지 않으면 "개".
 - 쉼표와 "원" 같은 글자는 빼고 숫자만 넣으세요.
@@ -264,7 +266,7 @@ $("read").onclick = async () => {
         if (!it || !String(it.name ?? "").trim()) continue;
         const qty = toNum(it.qty) || 1;
         const shown = toNum(it.shown);
-        const price = it.shown_is_total === false ? shown : Math.round((shown / qty) * 100) / 100;
+        const price = it.shown_is_total === false ? shown : shown / qty;
         rows.push({ id: ++uid, name: String(it.name).trim(), spec: String(it.spec ?? "").trim(), qty, unit: String(it.unit ?? "").trim() || "개", price });
         got++;
       }
